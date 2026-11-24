@@ -32,6 +32,16 @@ Pengelola **web server lokal** lintas platform (Windows · Linux · macOS) — a
 - **Route viewer** (`route:list --json` / `spark routes`), **log aplikasi** terparsir (stack trace dapat dibuka), **editor .env**, toggle environment (local/production, `CI_ENVIRONMENT`, `ENVIRONMENT` CI3).
 - **Optimasi otomatis**: `.user.ini` per proyek (memory 512M, upload 128M, timeout 300s), OPcache dev-friendly, `AllowOverride All` + `mod_rewrite`.
 
+### ⭐ Proyek Node.js (Next.js, React, Vue, Nuxt, Svelte, AdonisJS, NestJS, Express)
+
+- **Autodetect layout folder** saat import: PHP di root, **Node saja** (frontend dan/atau API Node), atau **fullstack** — root berisi subfolder backend (Laravel/CI/Adonis/Nest/Express) + subfolder frontend (Next/React/Vue/Nuxt/Svelte). Framework, versi, package manager (npm/pnpm/yarn/bun dari lockfile) dan framework CSS terdeteksi.
+- **Satu domain**: `toko.test` melayani frontend, `/api` diteruskan ke backend (backend PHP lewat vhost internal `127.0.0.1:8300+`, backend Node ke port dev server-nya). **Routing bisa diatur**: path prefix, buang/teruskan prefix, target otomatis atau URL kustom, route tambahan (`/sanctum`, `/storage`, …).
+- **Dev server + HMR**: tiap app Node jalan sebagai worker terkelola (port tetap 5170+, auto-restart untuk backend) dan Apache menjadi reverse proxy termasuk WebSocket. **Mode static**: Apache melayani hasil build (`dist`/`out`) dengan fallback SPA.
+- **.env frontend otomatis** (`NEXT_PUBLIC_API_URL` / `VITE_API_URL` / `NUXT_PUBLIC_API_BASE`, `API_PROXY_URL`) + editor; Next.js diberi **rewrites** `/api` dan `allowedDevOrigins` agar HMR jalan lewat domain.
+- **Buat proyek baru**: Node.js atau Fullstack (`backend/` + `frontend/`), TypeScript, package manager, dan **framework CSS**: Tailwind, Tailwind + daisyUI, Tailwind + shadcn/ui, Bootstrap, Bulma, UnoCSS, Sass, Material UI, Vuetify, PrimeReact/PrimeVue — bisa ditambah lagi kemudian.
+- **Perintah per app**: npm/pnpm/yarn/bun, npx, node, `node ace` (Adonis, termasuk generator `make:*`), `nest g …` (Nest).
+- **Runtime Node.js terkelola** dari nodejs.org (LTS & Current, checksum SHA-256) atau Node sistem.
+
 ## Dukungan OS
 
 | | Windows | Linux | macOS |
@@ -46,72 +56,6 @@ Pengelola **web server lokal** lintas platform (Windows · Linux · macOS) — a
 
 Windows adalah platform dengan fitur paling lengkap.
 
-## Arsitektur
-
-```
-JugServer/
-├── ui/                        Next.js 15 (App Router, static export) + Tailwind v4
-├── src-tauri/                 Shell desktop Tauri v2: window, system tray, bridge `invoke("api")`
-├── crates/jugserver-core/     Engine Rust: layanan, PHP, vhost, SSL, unduhan, DB, framework, mail
-│   └── templates/             httpd.conf, vhosts.conf, my.cnf, php-fpm.conf, phpMyAdmin config
-├── crates/jugserver-cli/      CLI headless `jugserver` (engine yang sama)
-└── catalog/catalog.json       Katalog unduhan (bisa diperbarui dari repo)
-```
-
-- UI memanggil satu perintah Tauri `api(method, args)` → `jugserver_core::api::dispatch`. Event (status layanan, output tugas, progres unduhan, log, email) dikirim lewat `jug://event`.
-- Status proses disimpan sebagai pidfile di `run/`, sehingga aplikasi desktop dan CLI berbagi status.
-- Data default: `C:\JugServer` (Windows) atau `~/JugServer`; ubah dengan `JUGSERVER_HOME`.
-
-```
-JugServer/  bin/<jenis>/<versi>  apps/phpmyadmin  www/  etc/apache|php|mysql  data/  logs/  ssl/  run/  tmp/
-```
-
-## Pengembangan
-
-Prasyarat: Rust stable, Node.js 20+, dan di Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev`.
-
-Repo memakai npm workspaces (`ui/` adalah workspace), jadi cukup satu kali install di root:
-
-```bash
-npm install
-```
-
-```bash
-npm run dev
-```
-
-UI saja di browser (memakai data contoh/mock), server dev di **http://localhost:3384**:
-
-```bash
-npm run ui:dev
-```
-
-Build installer (MSI/NSIS di Windows, DMG di macOS, DEB/AppImage di Linux):
-
-```bash
-npm run build
-```
-
-Tes:
-
-```bash
-cargo test --workspace
-```
-
-## CLI
-
-```bash
-cargo run -p jugserver-cli -- status
-```
-
-Contoh lain: `jugserver startup show|run [--wait]`, `jugserver hosts-filter clear`, `jugserver project workers toko`, `jugserver project worker toko queue --args "--queue=emails"`, `jugserver project install toko reverb`, `jugserver project test toko --coverage`, `jugserver xdebug set php-8.3.14 --modes debug,coverage`, `jugserver start all`, `jugserver detect --register`, `jugserver install php-8.3.14-win-x64`, `jugserver vhost add toko.test D:/toko/public --ssl --alias /docs=D:/docs`, `jugserver db create mariadb toko`, `jugserver project new toko --framework laravel --db mysql`, `jugserver project health toko`, `jugserver project run toko artisan migrate`, `jugserver mail serve`.
-
-## Catatan
-
-- Katalog bawaan (`catalog/catalog.json`) hanya cadangan saat offline; versi terbaru diambil langsung dari situs resmi. Untuk memperbarui cadangan: `JUG_CATALOG_OUT=$PWD/catalog/catalog.json cargo test -p jugserver-core snapshot_catalog -- --ignored`.
-- PHP Windows & Apache Lounge membutuhkan Microsoft Visual C++ Redistributable 2015-2022 x64.
-- Hindari TLD `.dev`/`.app` (dipaksa HTTPS oleh browser); default `.test`.
-
 ## Akses dari HP / komputer lain (LAN)
 
 1. *Pengaturan → Izinkan akses dari jaringan* → Simpan (Apache, database & SMTP mendengarkan di semua antarmuka).
@@ -125,10 +69,6 @@ Contoh lain: `jugserver startup show|run [--wait]`, `jugserver hosts-filter clea
 ## Pembaruan aplikasi
 
 Cek versi otomatis saat dibuka dan halaman *Tentang*. Self-update bertanda tangan membutuhkan kunci updater + tempat file rilis — lihat [docs/UPDATER.md](docs/UPDATER.md). Rilis bisa lewat GitHub Actions (push tag `v*`) atau dari PC sendiri: `npm run release:local` lalu unggah hasilnya ke GitHub Releases.
-
-## Halaman Tentang
-
-Konten diambil dari [`docs/about.json`](docs/about.json) dan [`CHANGELOG.md`](CHANGELOG.md) (disalin ke UI saat dev/build) — edit file tersebut untuk memperbarui.
 
 ## Troubleshooting Windows
 
